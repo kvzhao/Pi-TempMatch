@@ -1,0 +1,1 @@
+/home/kv/robotics_lab/vision/temp_match/CMakeFiles/template_matching.dir
