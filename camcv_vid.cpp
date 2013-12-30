@@ -60,45 +60,22 @@ extern "C" {
 using namespace cv;
 using namespace std;
 
-// some constants to manage nb of people to learn+ id of people
-#define MAX_PEOPLE 		4
-#define P_PIERRE		0
-#define P_NATACHA		1
-#define P_LISA			3
-#define P_MONA			2
-
 // for debug and trace
 #define TRACE 1
 #define DEBUG_MODE 0
 #define DEBUG if (DEBUG_MODE==1)
 
-CascadeClassifier face_cascade;
-CvPoint Myeye_left;
-CvPoint Myeye_right;
-Eigenfaces model;
-string fn_haar;
-string fn_csv;
 int im_width;		// image width
 int im_height;		// image height
-int PREDICTION_SEUIL ;
+Mat gray;
 char key;
 
-Mat gray,frame,face,face_resized;
 vector<Mat> images;
-vector<int> labels;
 
-// name of people
-string  people[MAX_PEOPLE];
 
-// nb of times RPI talks to one guy
-int nbSpeak[MAX_PEOPLE];
 
 int bHisto;
-vector< Rect_<int> > faces;
 
-// nb of picture learnt by people
-int nPictureById[MAX_PEOPLE];
-///////////////////////
 
 /// Camera number to use - we only have one camera, indexed from 0.
 #define CAMERA_NUMBER 0
@@ -159,60 +136,11 @@ typedef struct
    RASPIVID_STATE *pstate;            /// pointer to our state in case required in callback
 } PORT_USERDATA;
 
-////////////////////////////////////////
 /////////////////////////////////////////////////
 // trace if TRACE==1
 /////////////////////////////////////////////////
-void trace(string s)
-{
-	if (TRACE==1)
-	{
-		cout<<s<<"\n";
-	}
-}
-/////////////////////////////////////////////////
+void trace(string s) { if (TRACE==1) cout<<s<<"\n"; }
 //
-// read csv files.
-// Fully copied from Philipp Wagner works
-// http://docs.opencv.org/trunk/modules/contrib/doc/facerec/tutorial/facerec_video_recognition.html
-//
-////////////////////////////////////////////////
-static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';') {
-    std::ifstream file(filename.c_str(), ifstream::in);
-    if (!file) {
-        string error_message = "(E) No valid input file was given, please check the given filename.";
-        CV_Error(CV_StsBadArg, error_message);
-    }
-    string line, path, classlabel;
-    int nLine=0;
-    while (getline(file, line)) {
-        stringstream liness(line);
-        getline(liness, path, separator);
-        getline(liness, classlabel);
-        if(!path.empty() && !classlabel.empty())
-        {
-        	// read the file and build the picture collection
-            images.push_back(imread(path, 0));
-            labels.push_back(atoi(classlabel.c_str()));
-            nPictureById[atoi(classlabel.c_str())]++;
-        	nLine++;
-        }
-    }
-
-    // write number of picture by people
-    // did you notice? I'm not familiar with string classe :-)
-    // I prefer my old good char* ...
-    // (what a pity)
-	char sTmp[128];
-    sprintf(sTmp,"(init) %d pictures read to train",nLine);
-    trace((string)(sTmp));
-	for (int j=0;j<MAX_PEOPLE;j++)
-	{
-		sprintf(sTmp,"(init) %d pictures of %s (%d) read to train",nPictureById[j],people[j].c_str(),j);
-   	 	trace((string)(sTmp));
-	}
-}
-
 
 /////////////////////////////////////////
 
@@ -295,73 +223,9 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 			//cvShowImage("camcvWin", py); // display only gray channel
 		}
 
-////////////////////////////////
-// FACE RECOGNITION START HERE
-////////////////////////////////
-
-	// detect faces
-	face_cascade.detectMultiScale(gray, faces, 1.1, 3, CV_HAAR_SCALE_IMAGE, Size(80,80));
-	// for each faces founded
-	for(int i = 0; i < faces.size(); i++)
-	{
-		// crop face (pretty easy with opencv, don't you think ?
-		Rect face_i = faces[i];
-
-		face = gray(face_i);
-		//  resized face and display it
-		cv::resize(face, face_resized, Size(im_width, im_height), 1.0, 1.0, CV_INTER_NN); //INTER_CUBIC);
-		rectangle( gray, face_i, CV_RGB(255,255,255),1);
-		// Point center( faces[i].x + faces[i].width*0.5 , faces[i].y + faces[i].height*0.5);
-		//ellipse( gray, center, Size(faces[i]
-	/*
-		// now, we try to predict who is it ?
-		char sTmp[256];
-		double predicted_confidence	= 0.0;
-		int prediction				= -1;
-		model.predict(face_resized,prediction,predicted_confidence);
-
-		// create a rectangle around the face
-		rectangle(gray, face_i, CV_RGB(255, 255 ,255), 1);
-
-		// if good prediction : > threshold
-		if (predicted_confidence>PREDICTION_SEUIL)
-		{
-		// trace
-		//sprintf(sTmp,"+ prediction ok = %s (%d) confiance = (%d)",people[prediction].c_str(),prediction,(int)predicted_confidence);
-		//trace((string)(sTmp));
-
-	 	// display name of the guy on the picture
-		string box_text;
-		if (prediction<MAX_PEOPLE)
-		{
-			box_text = "Id="+people[prediction];
-		}
-		else
-		{
-			trace("(E) prediction id incohérent");
-		}
-		int pos_x = std::max(face_i.tl().x - 10, 0);
-		int pos_y = std::max(face_i.tl().y - 10, 0);
-		putText(gray, box_text, Point(pos_x, pos_y), FONT_HERSHEY_PLAIN, 1.0, CV_RGB(255,255,255), 1.0);
-	}
-	else
-	{
-			// trace is commented to speed up
-			//sprintf(sTmp,"- prediction too low = %s (%d) confiance = (%d)",people[prediction].c_str(),prediction,(int)predicted_confidence);
-			//trace((string)(sTmp));
-	}
-	*/
-	} // end for
-
-
-/////////////////////////
-// END OF FACE RECO
-/////////////////////////
-
 	// Show the result:
-	imshow("camcvWin", gray);
-	key = (char) waitKey(1);
-	nCount++;		// count frames displayed
+    	imshow("camcvWin", gray);
+    	key = (char) waitKey(1);
 
          mmal_buffer_header_mem_unlock(buffer);
       }
@@ -632,103 +496,6 @@ static void signal_handler(int signal_number)
  */
 int main(int argc, const char **argv)
 {
-
-
-/////////////////////////////////
-// BEGIN OF FACE RECO INIT
-/////////////////////////////////
-
-	//
-	// see thinkrpi.wordpress.com, articles on Magic Mirror to understand this command line and parameters
-
-//
-/*
-	cout<<"start\n";
-	   if ((argc != 4)&&(argc!=3)) {
-	       cout << "usage: " << argv[0] << " ext_files  seuil(opt) \n files.ext histo(0/1) 5000 \n" << endl;
-	       exit(1);
-	   }
-
-	// set value by default for prediction treshold = minimum value to recognize
-	if (argc==3) { trace("(init) prediction treeshold = 4500.0 by default");PREDICTION_SEUIL = 4500.0;}
-	if (argc==4) PREDICTION_SEUIL = atoi(argv[3]);
-
-	// do we do a color histogram equalization ?
-	bHisto=atoi(argv[2]);
-
-
-	// init people, should be do in a config file,
-	// but I don't have time, I need to go to swimming pool
-	// with my daughters
-	// and they prefer to swimm than to see their father do a config file
-	// life is hard.
-	people[P_PIERRE] 	= "Pierre";
-	people[P_NATACHA] 	= "Natacha";
-	people[P_MONA] 		= "Mona Lisa";
-	people[P_LISA]		= "Lisa";
-
-	// init...
-	// reset counter
-	for (int i=0;i>MAX_PEOPLE;i++)
-	{
-		nPictureById[i]=0;
-	}
-	int bFirstDisplay	=1;
-	trace("(init) People initialized");
-
-	// Get the path to your CSV
-	fn_csv = string(argv[1]);
-
-	// Note : /!\ change with your opencv path
-	//fn_haar = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml";
-	// change fn_harr to be quicker LBP (see article)
-	fn_haar = "/usr/share/opencv/haarcascades/lbpcascade_frontalface.xml";
-	DEBUG cout<<"(OK) csv="<<fn_csv<<"\n";
-
-    // Read in the data (fails if no valid input filename is given, but you'll get an error message):
-    try {
-        read_csv(fn_csv, images, labels);
-		DEBUG cout<<"(OK) read CSV ok\n";
-    	}
-    catch (cv::Exception& e)
-    {
-        cerr << "Error opening file \"" << fn_csv << "\". Reason: " << e.msg << endl;
-        exit(1);
-    }
-
-	// get heigh, witdh of 1st images--> must be the same
-    im_width = images[0].cols;
-    im_height = images[0].rows;
-	trace("(init) taille images ok");
-
- 	//
-    // Create a FaceRecognizer and train it on the given images:
-	//
-
-	// this a Eigen model, but you could replace with Fisher model (in this case
-	// threshold value should be lower) (try)
-
-    //	Fisherfaces model;
-
-    // train the model with your nice collection of pictures
-    trace("(init) start train images");
-    model.train(images, labels);
- 	trace("(init) train images : ok");
-*/
-	// load face model
-// fn_haar = "/usr/share/opencv/haarcascades/lbpcascade_frontalface.xml";
-   fn_haar ="haarcascade_frontalface_alt.xml";
-   if (!face_cascade.load(fn_haar))
-   	{
-    			cout <<"(E) face cascade model not loaded :"+fn_haar+"\n";
-    			return -1;
-    }
-    trace("(init) Load modele : ok");
-
-/////////////////////////////////
-// END OF FACE RECO INIT
-/////////////////////////////////
-
 
 	// Our main data storage vessel..
 	RASPIVID_STATE state;
