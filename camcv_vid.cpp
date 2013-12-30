@@ -70,13 +70,6 @@ int im_height;		// image height
 Mat gray;
 char key;
 
-vector<Mat> images;
-
-
-
-int bHisto;
-
-
 /// Camera number to use - we only have one camera, indexed from 0.
 #define CAMERA_NUMBER 0
 
@@ -95,9 +88,7 @@ int bHisto;
 // Max bitrate we allow for recording
 const int MAX_BITRATE = 30000000; // 30Mbits/s
 
-
 // variable to convert I420 frame to IplImage
-int nCount=0;
 IplImage *py, *pu, *pv, *pu_big, *pv_big, *image,* dstImage;
 
 
