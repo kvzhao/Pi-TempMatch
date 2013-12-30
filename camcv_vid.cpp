@@ -216,7 +216,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 
 	// Show the result:
     	imshow("camcvWin", gray);
-    	key = (char) waitKey(1);
+    	key = (char) waitKey(33);
 
          mmal_buffer_header_mem_unlock(buffer);
       }
