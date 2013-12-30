@@ -65,8 +65,6 @@ using namespace std;
 #define DEBUG_MODE 0
 #define DEBUG if (DEBUG_MODE==1)
 
-int im_width;		// image width
-int im_height;		// image height
 Mat gray;
 char key;
 
