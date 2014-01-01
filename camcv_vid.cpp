@@ -88,7 +88,7 @@ int nCount =0;
 const int MAX_BITRATE = 30000000; // 30Mbits/s
 
 // variable to convert I420 frame to IplImage
-IplImage *py, *pu, *pv, *pu_big, *pv_big, *image,* dstImage;
+IplImage *py, *image,* dstImage;
 
 
 int mmal_status_to_int(MMAL_STATUS_T status);
@@ -147,7 +147,7 @@ static void default_status(RASPIVID_STATE *state)
    memset(state, 0, sizeof(RASPIVID_STATE));
 
    // Now set anything non-zero
-   state->timeout 			= 65000;     // capture time : here 65 s
+   state->timeout 			= 60000;     // capture time : here 35 s
    state->width 			= 640;      // use a multiple of 320 (640, 1280)
    state->height 			= 480;		// use a multiple of 240 (480, 960)
    state->bitrate 			= 17000000; // This is a decent default bitrate for 1080p
@@ -183,39 +183,20 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 
 	      mmal_buffer_header_mem_lock(buffer);
 
- 		//
 		// *** PR : OPEN CV Stuff here !
 		//
 		int w=pData->pstate->width;	// get image size
 		int h=pData->pstate->height;
-		int h4=h>>2 ;
 
 		memcpy(py->imageData,buffer->data,w*h);	// read Y
 
-		if (pData->pstate->graymode==0)
-		{
-			memcpy(pu->imageData,buffer->data+w*h,w*h4); // read U
-			memcpy(pv->imageData,buffer->data+w*h+w*h4,w*h4); // read v
+    gray = cvarrToMat(py); // Y is the intensity
 
-			cvResize(pu, pu_big, CV_INTER_NN);
-			cvResize(pv, pv_big, CV_INTER_NN);  //CV_INTER_LINEAR looks better but it's slower
-			cvMerge(py, pu_big, pv_big, NULL, image);
+    // Show the result:
+    imshow("camcvWin", gray);
+    // Showing the result is slow
 
-			cvCvtColor(image,dstImage,CV_YCrCb2RGB);	// convert in RGB color space (slow)
-			gray=cvarrToMat(dstImage);
-			//cvShowImage("camcvWin", dstImage );
-
-		}
-		else
-		{
-			// for face reco, we just keep gray channel, py
-			gray=cvarrToMat(py);
-			//cvShowImage("camcvWin", py); // display only gray channel
-		}
-
-	// Show the result:
-    	imshow("camcvWin", gray);
-    	if (27 ==  waitKey(10)) return;
+    if (27 ==  waitKey(10)) return;
         nCount++;
 
          mmal_buffer_header_mem_unlock(buffer);
@@ -493,7 +474,7 @@ int main(int argc, const char **argv)
 
 	MMAL_STATUS_T status;// = -1;
 	MMAL_PORT_T *camera_video_port = NULL;
-//	MMAL_PORT_T *camera_still_port = NULL;
+	MMAL_PORT_T *camera_still_port = NULL;
 	MMAL_PORT_T *preview_input_port = NULL;
 	MMAL_PORT_T *encoder_input_port = NULL;
 	MMAL_PORT_T *encoder_output_port = NULL;
@@ -511,14 +492,7 @@ int main(int argc, const char **argv)
 	cvNamedWindow("camcvWin", CV_WINDOW_AUTOSIZE);
 	int w=state.width;
 	int h=state.height;
-	dstImage = cvCreateImage(cvSize(w,h), IPL_DEPTH_8U, 3);
 	py = cvCreateImage(cvSize(w,h), IPL_DEPTH_8U, 1);		// Y component of YUV I420 frame
-	pu = cvCreateImage(cvSize(w/2,h/2), IPL_DEPTH_8U, 1);	// U component of YUV I420 frame
-	pv = cvCreateImage(cvSize(w/2,h/2), IPL_DEPTH_8U, 1);	// V component of YUV I420 frame
-	pu_big = cvCreateImage(cvSize(w,h), IPL_DEPTH_8U, 1);
-	pv_big = cvCreateImage(cvSize(w,h), IPL_DEPTH_8U, 1);
-	image = cvCreateImage(cvSize(w,h), IPL_DEPTH_8U, 3);	// final picture to display
-
 
 	// create camera
 	if (!create_camera_component(&state))
@@ -535,7 +509,7 @@ int main(int argc, const char **argv)
 		PORT_USERDATA callback_data;
 
 		camera_video_port   = state.camera_component->output[MMAL_CAMERA_VIDEO_PORT];
-//		camera_still_port   = state.camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
+		camera_still_port   = state.camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
 		callback_data.pstate = &state;
 
 		VCOS_STATUS_T vcos_status;
@@ -576,7 +550,7 @@ int main(int argc, const char **argv)
 
 		//mmal_status_to_int(status);
 		// Disable all our ports that are not handled by connections
-//		check_disable_port(camera_still_port);
+		check_disable_port(camera_still_port);
 
 		if (state.camera_component)
 		   mmal_component_disable(state.camera_component);
@@ -590,12 +564,8 @@ int main(int argc, const char **argv)
 	raspicamcontrol_check_configuration(128);
 
 	time(&timer_end);  /* get current time; same as: timer = time(NULL)  */
-	cvReleaseImage(&dstImage);
-	cvReleaseImage(&pu);
-	cvReleaseImage(&pv);
-	cvReleaseImage(&py);
-	cvReleaseImage(&pu_big);
-	cvReleaseImage(&pv_big);
+
+    cvReleaseImage(&py);
 
 	secondsElapsed = difftime(timer_end,timer_begin);
 
