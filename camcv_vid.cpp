@@ -67,6 +67,7 @@ using namespace std;
 
 Mat gray;
 char key;
+int nCount =0;
 
 /// Camera number to use - we only have one camera, indexed from 0.
 #define CAMERA_NUMBER 0
@@ -147,12 +148,12 @@ static void default_status(RASPIVID_STATE *state)
 
    // Now set anything non-zero
    state->timeout 			= 65000;     // capture time : here 65 s
-   state->width 			= 320;      // use a multiple of 320 (640, 1280)
-   state->height 			= 240;		// use a multiple of 240 (480, 960)
+   state->width 			= 640;      // use a multiple of 320 (640, 1280)
+   state->height 			= 480;		// use a multiple of 240 (480, 960)
    state->bitrate 			= 17000000; // This is a decent default bitrate for 1080p
    state->framerate 		= VIDEO_FRAME_RATE_NUM;
    state->immutableInput 	= 1;
-   state->graymode 			= 1;		//gray by default, much faster than color (0), mandatory for face reco
+   state->graymode 			= 1;		//gray by default, much faster than color (0)
 
    // Setup preview window defaults
    raspipreview_set_defaults(&state->preview_parameters);
@@ -187,7 +188,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 		//
 		int w=pData->pstate->width;	// get image size
 		int h=pData->pstate->height;
-		int h4=h/4;
+		int h4=h>>2 ;
 
 		memcpy(py->imageData,buffer->data,w*h);	// read Y
 
@@ -214,7 +215,8 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 
 	// Show the result:
     	imshow("camcvWin", gray);
-    	key = (char) waitKey(33);
+    	if (27 ==  waitKey(10)) return;
+        nCount++;
 
          mmal_buffer_header_mem_unlock(buffer);
       }
@@ -491,7 +493,7 @@ int main(int argc, const char **argv)
 
 	MMAL_STATUS_T status;// = -1;
 	MMAL_PORT_T *camera_video_port = NULL;
-	MMAL_PORT_T *camera_still_port = NULL;
+//	MMAL_PORT_T *camera_still_port = NULL;
 	MMAL_PORT_T *preview_input_port = NULL;
 	MMAL_PORT_T *encoder_input_port = NULL;
 	MMAL_PORT_T *encoder_output_port = NULL;
@@ -533,12 +535,10 @@ int main(int argc, const char **argv)
 		PORT_USERDATA callback_data;
 
 		camera_video_port   = state.camera_component->output[MMAL_CAMERA_VIDEO_PORT];
-		camera_still_port   = state.camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
-
-		VCOS_STATUS_T vcos_status;
-
+//		camera_still_port   = state.camera_component->output[MMAL_CAMERA_CAPTURE_PORT];
 		callback_data.pstate = &state;
 
+		VCOS_STATUS_T vcos_status;
 		vcos_status = vcos_semaphore_create(&callback_data.complete_semaphore, "RaspiStill-sem", 0);
 		vcos_assert(vcos_status == VCOS_SUCCESS);
 
@@ -576,7 +576,7 @@ int main(int argc, const char **argv)
 
 		//mmal_status_to_int(status);
 		// Disable all our ports that are not handled by connections
-		check_disable_port(camera_still_port);
+//		check_disable_port(camera_still_port);
 
 		if (state.camera_component)
 		   mmal_component_disable(state.camera_component);
