@@ -463,6 +463,29 @@ static void signal_handler(int signal_number)
    exit(255);
 }
 
+/*
+template matching
+match_method:   CV_TM_SQDIFF        (Sum of Squared Differences)
+                CV_TM_SQDIFF_NORMED (Normalized Sum of Squared Differences)
+                CV_TM_CCORR         (Cross Correlation)
+                CV_TM_CCORR_NORMED  (Normalized Cross Correlation)
+                CV_TM_CCOEFF        (Correlation Coefficient)
+                CV_TM_CCOEFF_NORMED (Normalized Correlation Coefficient)
+*/
+CvPoint template_matching(IplImage* source, IplImage* template_image, int match_method)
+{
+    IplImage* result = cvCreateImage(cvSize(source->width - template_image->width + 1, source->height  - template_image->height  + 1), IPL_DEPTH_32F, 1);
+    cvMatchTemplate(source, template_image, result, match_method);
+
+    CvPoint     minloc, maxloc, matchLoc;
+    double      minval, maxval;
+    cvMinMaxLoc( result, &minval, &maxval, &minloc, &maxloc, 0 );
+    matchLoc = (match_method == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED)?minLoc:maxLoc;
+    matchLoc.x += template_image->width / 2;
+    matchLoc.Y += template_image>height / 2;
+    return matchLoc;
+}
+
 /**
  * main
  */
