@@ -1,4 +1,4 @@
-
+whi
 /////////////////////////////////////////////////////////////
 // Many source code lines are copied from RaspiVid.c
 // Copyright (c) 2012, Broadcom Europe Ltd
@@ -464,26 +464,27 @@ static void signal_handler(int signal_number)
 }
 
 /*
-template matching
-match_method:   CV_TM_SQDIFF        (Sum of Squared Differences)
-                CV_TM_SQDIFF_NORMED (Normalized Sum of Squared Differences)
-                CV_TM_CCORR         (Cross Correlation)
-                CV_TM_CCORR_NORMED  (Normalized Cross Correlation)
-                CV_TM_CCOEFF        (Correlation Coefficient)
-                CV_TM_CCOEFF_NORMED (Normalized Correlation Coefficient)
+CV_TM_CCOEFF_NORMED: Normalized Correlation Coefficient
+If the values of result are not greater than the value of threshod, it will return the point(-1,-1).
 */
-CvPoint template_matching(IplImage* source, IplImage* template_image, int match_method)
+Point template_matching(Mat source, Mat template_image, double thresholdValue)
 {
-    IplImage* result = cvCreateImage(cvSize(source->width - template_image->width + 1, source->height  - template_image->height  + 1), IPL_DEPTH_32F, 1);
-    cvMatchTemplate(source, template_image, result, match_method);
+	if(source.type() != template_image.type())return Point(-1,-1);
+	Mat result(source.rows - template_image.rows  + 1,source.cols - template_image.cols + 1, CV_32FC1);
+	matchTemplate(source, template_image, result, CV_TM_CCOEFF_NORMED);
 
-    CvPoint     minloc, maxloc, matchLoc;
-    double      minval, maxval;
-    cvMinMaxLoc( result, &minval, &maxval, &minloc, &maxloc, 0 );
-    matchLoc = (match_method == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED)?minLoc:maxLoc;
-    matchLoc.x += template_image->width / 2;
-    matchLoc.Y += template_image>height / 2;
-    return matchLoc;
+	Point minLoc, maxLoc, matchLoc;
+	double minval, maxval;
+	minMaxLoc(result, &minval, &maxval, &minLoc, &maxLoc, Mat());
+	if(result.at<float>(maxLoc.y, maxLoc.x) > thresholdValue)
+	{
+		matchLoc=maxLoc;
+	}
+	else
+	{
+		matchLoc=Point(-1,-1);
+	}
+	return matchLoc;
 }
 
 /**
